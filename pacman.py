@@ -3,20 +3,40 @@ import os
 from time import sleep
 from getmap import GetMap
 from random import randint
+import _thread
+import threading
+import queue
+import sys
 lvlArray=GetMap()
-
+Score=0
+lives=3
+playerPos=[20,12]
+YesHeSDead=False
 class Enemy:
     enemyPos=[11,12]
     def __init__(self,_colorNum):
         self.colorNum=_colorNum
+
+def IsHeDead():
+    global lives
+    global playerPos
+    global YesHeSDead
+    global GameOver
+    if lives>0:
+        playerPos=[20,12]
+    else:
+        YesHeSDead=True
+        sys.exit("Game over!")
         
-def draw_level(playerPos,lvlArray,Score,enemies,lives):
+def draw_level(lvlArray,enemies):
+    global Score
+    global lives
+    global playerPos
     pad=curses.newpad(23,30)
     pad.addstr(0,25,"Score")
     pad.addstr(1,25,str(Score))
     pad.addstr(2,25,"Lives")
-    if(lives==3):
-        pad.addstr(3,25,'# '*lives,curses.color_pair(8))
+    pad.addstr(3,25,'# '*lives,curses.color_pair(8))
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_GREEN)
     curses.init_pair(2, curses.COLOR_YELLOW,curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLUE,curses.COLOR_BLUE)
@@ -38,7 +58,10 @@ def draw_level(playerPos,lvlArray,Score,enemies,lives):
         pad.addstr(enemies[x].enemyPos[0],enemies[x].enemyPos[1],'M',curses.color_pair(enemies[x].colorNum))
     pad.refresh(0,0,0,0,22,29)
 
-def change_pos(key,playerPos,lvlArray,Score):
+def change_pos(key,lvlArray):
+    global Score
+    global lives
+    global playerPos
     #Up
     if key==259:
         playerPos[0]-=1
@@ -82,6 +105,8 @@ def change_pos(key,playerPos,lvlArray,Score):
     return playerPos,Score
 
 def change_enemy_pos(enemyPos,lvlArray):
+    global lives
+    global playerPos
     if (enemyPos[0]==11 or enemyPos[0]==12 or enemyPos[0]==13) and enemyPos[1]==12:
         return [enemyPos[0]+1,12]
     else:
@@ -115,12 +140,49 @@ def change_enemy_pos(enemyPos,lvlArray):
             elif lvlArray[enemyPos[0]][enemyPos[1]]==1:
                 enemyPos[1]-=1
         return enemyPos
+    
+def enemyLoop(lvlArray,enemies,q):
+    counter=1
+    global Score
+    global lives
+    global playerPos
+    while True:
+        sleep(0.0005)
+        for x in range(0,4):
+            if enemies[x].enemyPos==playerPos:
+                lives-=1
+                IsHeDead()
+        if counter==100:
+            for x in range(0,4):
+                enemies[x].enemyPos=change_enemy_pos(enemies[x].enemyPos,lvlArray)
+            counter=0
+            draw_level(lvlArray,enemies)
+        else:
+            counter+=1
+            
+def playerLoop(lvlArray,enemies,q):
+    global Score
+    global lives
+    global playerPos
+    global YesHeSDead
+    while True:
+        if YesHeSDead:
+            curses.nocbreak()
+            stdscr.keypad(False)
+            curses.endwin()
+            sys.exit("Game over!")
+        key=stdscr.getch()
+        if key==27:
+            break
+        elif key in range(258,262):
+            playerPos,Score=change_pos(key,lvlArray)
+            draw_level(lvlArray,enemies)
+        else:
+            print(key)
         
         
 def main():
-    counter=1
-    lives=3
-    playerPos=[20,12]
+    global YesHeSDead
     G1=Enemy(4)
     G2=Enemy(5)
     G3=Enemy(6)
@@ -130,25 +192,13 @@ def main():
     enemies.append(G2)
     enemies.append(G3)
     enemies.append(G4)
-    Score=0
-    draw_level(playerPos,lvlArray,Score,enemies,lives)
-    while True:
-        sleep(0.001)
-        if counter==100:
-            for x in range(0,4):
-                enemies[x].enemyPos=change_enemy_pos(enemies[x].enemyPos,lvlArray)
-            counter=0
-            draw_level(playerPos,lvlArray,Score,enemies,lives)
-        else:
-            counter+=1
-        #key=stdscr.getch()
-        #if key==27:
-        #    break
-        #elif key in range(258,262):
-        #    playerPos,Score=change_pos(key,playerPos,lvlArray,Score)
-        #    draw_level(playerPos,lvlArray,Score,enemies)
-        #else:
-        #    print(key)
+    q=queue.Queue()
+    draw_level(lvlArray,enemies)
+    _thread.start_new_thread(playerLoop,(lvlArray,enemies,q))
+    _thread.start_new_thread(enemyLoop,(lvlArray,enemies,q))
+    while YesHeSDead==False:
+        pass
+    
 
 if __name__=='__main__':
     #os.system("mode con cols=20 lines=21")
