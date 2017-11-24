@@ -32,6 +32,7 @@ def draw_level(lvlArray,enemies):
     global Score
     global lives
     global playerPos
+    global YesHeSDead
     pad=curses.newpad(23,30)
     pad.addstr(0,25,"Score")
     pad.addstr(1,25,str(Score))
@@ -56,6 +57,18 @@ def draw_level(lvlArray,enemies):
     pad.addstr(playerPos[0],playerPos[1],'@')
     for x in range(0,4):
         pad.addstr(enemies[x].enemyPos[0],enemies[x].enemyPos[1],'M',curses.color_pair(enemies[x].colorNum))
+    if YesHeSDead: 
+        pad.addstr(9,6,"###############")
+        pad.addstr(10,6,"#             #")  
+        pad.addstr(11,6,"# Game Over!! #")
+        pad.addstr(12,6,"#             #") 
+        pad.addstr(13,6,"###############")
+    if Score==136: 
+        pad.addstr(9,6,"###############")
+        pad.addstr(10,6,"#             #")  
+        pad.addstr(11,6,"#  You Win!!  #")
+        pad.addstr(12,6,"#             #") 
+        pad.addstr(13,6,"###############")
     pad.refresh(0,0,0,0,22,29)
 
 def change_pos(key,lvlArray):
@@ -147,6 +160,20 @@ def enemyLoop(lvlArray,enemies,q):
     global lives
     global playerPos
     while True:
+        if YesHeSDead:
+            draw_level(lvlArray,enemies)
+            sleep(3)
+            curses.nocbreak()
+            stdscr.keypad(False)
+            curses.endwin()
+            sys.exit()
+        if Score==136:
+            draw_level(lvlArray,enemies)
+            sleep(3)
+            curses.nocbreak()
+            stdscr.keypad(False)
+            curses.endwin()
+            sys.exit()
         sleep(0.0005)
         for x in range(0,4):
             if enemies[x].enemyPos==playerPos:
@@ -167,10 +194,19 @@ def playerLoop(lvlArray,enemies,q):
     global YesHeSDead
     while True:
         if YesHeSDead:
+            draw_level(lvlArray,enemies)
+            sleep(3)
             curses.nocbreak()
             stdscr.keypad(False)
             curses.endwin()
-            sys.exit("Game over!")
+            sys.exit()
+        if Score==136:
+            draw_level(lvlArray,enemies)
+            sleep(3)
+            curses.nocbreak()
+            stdscr.keypad(False)
+            curses.endwin()
+            sys.exit()
         key=stdscr.getch()
         if key==27:
             break
@@ -196,8 +232,9 @@ def main():
     draw_level(lvlArray,enemies)
     _thread.start_new_thread(playerLoop,(lvlArray,enemies,q))
     _thread.start_new_thread(enemyLoop,(lvlArray,enemies,q))
-    while YesHeSDead==False:
+    while 1:
         pass
+    
     
 
 if __name__=='__main__':
